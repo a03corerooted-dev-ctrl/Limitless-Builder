@@ -53,6 +53,15 @@ export DTC_OVERLAY_VTS_EXT="$SOURCE_DIR/tools/mkdtimg/ufdt_verify_overlay_host"
 mkdir -p "$OUT_DIR"
 OUT_DIR="$(cd "$OUT_DIR" && pwd)"
 make -C "$SOURCE_DIR" O="$OUT_DIR" BSP_BUILD_DT_OVERLAY=y "$DEFCONFIG"
+
+CONFIG_FILE="$OUT_DIR/.config"
+for option in CONFIG_BPF CONFIG_BPF_SYSCALL CONFIG_BPF_JIT CONFIG_BPF_JIT_ALWAYS_ON CONFIG_CGROUP_BPF CONFIG_NET_CLS_BPF CONFIG_NET_CLS_ACT CONFIG_NET_ACT_BPF CONFIG_BPF_STREAM_PARSER; do
+  grep -qx "$option=y" "$CONFIG_FILE" || {
+    echo "Required HyperBPF config option is not enabled: $option" >&2
+    exit 1
+  }
+done
+
 make -C "$SOURCE_DIR" O="$OUT_DIR" -j"$(nproc)" \
   BSP_BUILD_DT_OVERLAY=y \
   CC="$CLANG_DIR/bin/clang" CROSS_COMPILE="$CROSS_COMPILE" \
