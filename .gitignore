@@ -3,3 +3,8 @@
 /.toolchains/
 *.log
 release/
+source-commit.txt
+source-ref.txt
+toolchain-info.txt
+validated-image.txt
+validated-boot-image.txt
