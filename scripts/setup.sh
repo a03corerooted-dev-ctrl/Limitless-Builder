@@ -3,6 +3,11 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
+# Immutable toolchain snapshots. Both archives are pinned to Git commits;
+# environment variables remain available for trusted local mirrors.
+DEFAULT_GCC_URL="https://github.com/SlimRoms/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9/archive/7280ce2399316a5dbd8872e0bfe69435d8719230.tar.gz"
+DEFAULT_CLANG_URL="https://github.com/AOSP-10/prebuilts_clang_host_linux-x86_clang-r383902/archive/23ba73b5770985b6bf5f38efceba99019178025c.tar.gz"
+
 download_toolchain() {
   local url="$1" dest="$2" label="$3"
   [[ -n "$url" ]] || {
@@ -13,7 +18,8 @@ download_toolchain() {
   local archive
   archive="$(mktemp)"
   curl --fail --location --retry 3 "$url" --output "$archive"
-  tar -xf "$archive" -C "$dest"
+  tar -tzf "$archive" >/dev/null
+  tar -xzf "$archive" -C "$dest"
   rm -f "$archive"
 }
 
@@ -48,12 +54,12 @@ CLANG_DIR="${LIMITLESS_CLANG_DIR:-$ROOT/.toolchains/clang}"
 mkdir -p "$GCC_DIR" "$CLANG_DIR"
 if [[ ! -x "$GCC_DIR/bin/aarch64-linux-android-gcc" ]]; then
   if ! find "$GCC_DIR" -type f -name aarch64-linux-android-gcc -perm -u+x -print -quit | grep -q .; then
-    download_toolchain "${LIMITLESS_GCC_URL:-}" "$GCC_DIR" "AArch64 GCC 4.9"
+    download_toolchain "${LIMITLESS_GCC_URL:-$DEFAULT_GCC_URL}" "$GCC_DIR" "AArch64 GCC 4.9"
   fi
 fi
 if [[ ! -x "$CLANG_DIR/bin/clang" ]]; then
   if ! find "$CLANG_DIR" -type f -name clang -perm -u+x -print -quit | grep -q .; then
-    download_toolchain "${LIMITLESS_CLANG_URL:-}" "$CLANG_DIR" "Clang r383902"
+    download_toolchain "${LIMITLESS_CLANG_URL:-$DEFAULT_CLANG_URL}" "$CLANG_DIR" "Clang r383902"
   fi
 fi
 
@@ -64,5 +70,9 @@ normalize_toolchain_bin "$CLANG_DIR" clang "Clang r383902"
   exit 1
 }
 
-"$GCC_DIR/bin/aarch64-linux-android-gcc" --version | head -n 1 | tee "$ROOT/toolchain-info.txt"
-"$CLANG_DIR/bin/clang" --version | head -n 1 | tee -a "$ROOT/toolchain-info.txt"
+{
+  echo "gcc_source=SlimRoms/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9@7280ce2399316a5dbd8872e0bfe69435d8719230"
+  echo "clang_source=AOSP-10/prebuilts_clang_host_linux-x86_clang-r383902@23ba73b5770985b6bf5f38efceba99019178025c"
+  "$GCC_DIR/bin/aarch64-linux-android-gcc" --version | head -n 1
+  "$CLANG_DIR/bin/clang" --version | head -n 1
+} | tee "$ROOT/toolchain-info.txt"
