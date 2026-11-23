@@ -19,7 +19,11 @@ Independent build and release pipeline for Limitless on Samsung Galaxy A03 (qogi
 
 ## Toolchains
 
-Configure repository Actions variables `LIMITLESS_GCC_URL` and `LIMITLESS_CLANG_URL` with trusted, immutable archive URLs for the AArch64 GCC 4.9 and Clang r383902 toolchains. Optionally set `LIMITLESS_GCC_DIR` / `LIMITLESS_CLANG_DIR` if the runner image already provides them. The pipeline does not silently substitute compiler versions.
+The builder downloads pinned snapshots by default:
+- AArch64 GCC 4.9 from `SlimRoms/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9` at commit `7280ce2399316a5dbd8872e0bfe69435d8719230`.
+- Clang r383902 from `AOSP-10/prebuilts_clang_host_linux-x86_clang-r383902` at commit `23ba73b5770985b6bf5f38efceba99019178025c`.
+
+No Actions variables are required for the default setup. For trusted mirrors, `LIMITLESS_GCC_URL` and `LIMITLESS_CLANG_URL` can override the pinned archive URLs. Optionally set `LIMITLESS_GCC_DIR` / `LIMITLESS_CLANG_DIR` if the runner already provides the matching toolchains. The setup records both pinned source commits in `toolchain-info.txt` and does not silently substitute compiler versions.
 
 ## Local build
 
