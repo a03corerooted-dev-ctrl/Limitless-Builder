@@ -25,10 +25,13 @@ jobs:
       - name: Checkout builder
         uses: actions/checkout@v4
 
+      - name: Check builder shell syntax
+        run: bash -n scripts/setup.sh scripts/build.sh scripts/package-boot.sh scripts/validate.sh
+
       - name: Install host dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y bc bison build-essential curl flex git libssl-dev make python3 rsync file xz-utils
+          sudo apt-get install -y bc bison build-essential cpio curl device-tree-compiler file flex git libelf-dev libncurses-dev libssl-dev lz4 make python-is-python3 python3 rsync xz-utils zlib1g-dev
 
       - name: Resolve source ref
         id: source
