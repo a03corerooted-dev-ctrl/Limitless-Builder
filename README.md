@@ -6,8 +6,11 @@ Independent build and release pipeline for Limitless on Samsung Galaxy A03 (qogi
 
 - Kernel source: `a03corerooted-dev-ctrl/limitless_android_kernel_samsung_a03`.
 - Builder code is independent; it does not use or modify NonGKI_Kernel_Build-K419.
-- GitHub Releases are the distribution interface. Actions is the build/publish backend.
-- Current pipeline publishes the validated raw ARM64 kernel image. Boot/DTBO packaging remains gated until matching firmware and per-variant packaging are verified. Do not reuse A035F firmware blindly on other variants.
+- GitHub Releases and Actions are the build/publish interface.
+- The pipeline produces the raw ARM64 kernel image and a repacked `boot.img`.
+- The boot package currently uses `Publish/a03-A035FXXS7CXF3.tar.xz` from the kernel source and its bundled `magiskboot`. The archive supplies `stock-boot.img`; only the kernel payload is replaced, while the stock ramdisk and boot metadata are retained.
+- This stock boot image is explicitly identified as firmware reference A035FXXS7CXF3. The tester's A035FXXS9CYG1 device has not yet validated this image. Treat the first package as an engineering/test artifact, not a confirmed cross-binary-compatible release.
+- Do not use this A035F package for SM-A035M or SM-A035G without variant-specific boot assets and validation. DTBO packaging is not yet included.
 
 ## Entry points
 
@@ -28,6 +31,12 @@ export LIMITLESS_CLANG_DIR=/opt/toolchains/clang-r383902
 ./scripts/validate.sh
 ```
 
+Optional packaging overrides:
+
+- `LIMITLESS_STOCK_BOOT_ARCHIVE`: alternate source archive containing the stock boot member.
+- `LIMITLESS_STOCK_BOOT_MEMBER`: archive member name (defaults to `stock-boot.img`).
+- `LIMITLESS_MAGISKBOOT`: alternate host `magiskboot` binary.
+
 ## Releases
 
-Use tags such as `v0.1.0-alpha.1`, `v0.1.0-beta.1`, then `v1.0.0`. The workflow attaches the source commit, compiler version report, build log, configuration metadata and SHA-256 checksums. Never label an untested build stable.
+Use tags such as `v0.1.0-alpha.1`, `v0.1.0-beta.1`, then `v1.0.0`. Each release includes the raw kernel image, repacked boot image, source commit, compiler version report, packaging provenance, build log and SHA-256 checksums. Never label an untested build stable.
