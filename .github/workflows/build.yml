@@ -1,0 +1,84 @@
+name: Limitless kernel build
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_ref:
+        description: Kernel source branch, tag or commit
+        required: true
+        default: limitless/dev
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: limitless-build-${{ github.event.release.tag_name || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 180
+    steps:
+      - name: Checkout builder
+        uses: actions/checkout@v4
+
+      - name: Install host dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bc bison build-essential curl flex git libssl-dev make python3 rsync file xz-utils
+
+      - name: Resolve source ref
+        id: source
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "release" ]]; then
+            echo "ref=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=${{ inputs.source_ref }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Prepare toolchains
+        env:
+          LIMITLESS_GCC_URL: ${{ vars.LIMITLESS_GCC_URL }}
+          LIMITLESS_CLANG_URL: ${{ vars.LIMITLESS_CLANG_URL }}
+          LIMITLESS_GCC_DIR: ${{ vars.LIMITLESS_GCC_DIR }}
+          LIMITLESS_CLANG_DIR: ${{ vars.LIMITLESS_CLANG_DIR }}
+        run: |
+          ./scripts/setup.sh
+          echo "LIMITLESS_GCC_DIR=${LIMITLESS_GCC_DIR:-$PWD/.toolchains/gcc}" >> "$GITHUB_ENV"
+          echo "LIMITLESS_CLANG_DIR=${LIMITLESS_CLANG_DIR:-$PWD/.toolchains/clang}" >> "$GITHUB_ENV"
+
+      - name: Build kernel
+        env:
+          LIMITLESS_SOURCE_REF: ${{ steps.source.outputs.ref }}
+        run: ./scripts/build.sh
+
+      - name: Validate output
+        run: ./scripts/validate.sh
+
+      - name: Collect payload
+        shell: bash
+        run: |
+          mkdir -p release
+          cp "$(cat validated-image.txt)" release/
+          cp source-commit.txt release/
+          printf 'Source ref: %s\nDefconfig: a03_cis_open_defconfig\nArchitecture: arm64\n' "${{ steps.source.outputs.ref }}" > release/BUILD-INFO.txt
+          (cd release && sha256sum * > SHA256SUMS)
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Limitless-${{ github.event.release.tag_name || github.run_number }}
+          path: release/*
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Attach assets to GitHub Release
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name }}
+        run: gh release upload "$TAG" release/* --clobber
