@@ -12,7 +12,7 @@ Independent build and release pipeline for Limitless on Samsung Galaxy A03 (qogi
 ## Entry points
 
 - `workflow_dispatch`: manual build with a selected source ref.
-- `release: published`: build the release tag and attach outputs to that release.
+- `release: published`: build the matching source tag and attach outputs to that release. Create the same tag in the kernel source repository first; otherwise use `workflow_dispatch` with an existing source ref.
 
 ## Toolchains
 
@@ -30,4 +30,4 @@ export LIMITLESS_CLANG_DIR=/opt/toolchains/clang-r383902
 
 ## Releases
 
-Use tags such as `v0.1.0-alpha.1`, `v0.1.0-beta.1`, then `v1.0.0`. Every release should carry source commit, compiler/configuration metadata, logs and SHA-256 checksums. Never label an untested build stable.
+Use tags such as `v0.1.0-alpha.1`, `v0.1.0-beta.1`, then `v1.0.0`. The workflow attaches the source commit, compiler version report, build log, configuration metadata and SHA-256 checksums. Never label an untested build stable.
