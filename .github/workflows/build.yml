@@ -52,7 +52,9 @@ jobs:
           LIMITLESS_CLANG_URL: ${{ vars.LIMITLESS_CLANG_URL || 'https://github.com/AOSP-10/prebuilts_clang_host_linux-x86_clang-r383902/archive/23ba73b5770985b6bf5f38efceba99019178025c.tar.gz' }}
           LIMITLESS_GCC_DIR: ${{ vars.LIMITLESS_GCC_DIR }}
           LIMITLESS_CLANG_DIR: ${{ vars.LIMITLESS_CLANG_DIR }}
+        shell: bash
         run: |
+          set -euo pipefail
           bash ./scripts/setup.sh 2>&1 | tee toolchain-setup.log
           echo "LIMITLESS_GCC_DIR=${LIMITLESS_GCC_DIR:-$PWD/.toolchains/gcc}" >> "$GITHUB_ENV"
           echo "LIMITLESS_CLANG_DIR=${LIMITLESS_CLANG_DIR:-$PWD/.toolchains/clang}" >> "$GITHUB_ENV"
@@ -60,7 +62,10 @@ jobs:
       - name: Build and package kernel
         env:
           LIMITLESS_SOURCE_REF: ${{ steps.source.outputs.ref }}
-        run: bash ./scripts/build.sh 2>&1 | tee build.log
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash ./scripts/build.sh 2>&1 | tee build.log
 
       - name: Validate outputs
         run: bash ./scripts/validate.sh
