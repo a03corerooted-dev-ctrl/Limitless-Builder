@@ -19,5 +19,5 @@ fi
 if [[ ! -x "$CLANG_DIR/bin/clang" ]]; then
   download_toolchain "${LIMITLESS_CLANG_URL:-}" "$CLANG_DIR" "Clang r383902"
 fi
-"$GCC_DIR/bin/aarch64-linux-android-gcc" --version | head -n 1
-"$CLANG_DIR/bin/clang" --version | head -n 1
+"$GCC_DIR/bin/aarch64-linux-android-gcc" --version | head -n 1 | tee "$ROOT/toolchain-info.txt"
+"$CLANG_DIR/bin/clang" --version | head -n 1 | tee -a "$ROOT/toolchain-info.txt"
