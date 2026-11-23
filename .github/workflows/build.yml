@@ -90,6 +90,7 @@ jobs:
             toolchain-setup.log
             build.log
             toolchain-info.txt
+            ufdt-host-deps.log
             source-commit.txt
             source-ref.txt
           if-no-files-found: ignore
