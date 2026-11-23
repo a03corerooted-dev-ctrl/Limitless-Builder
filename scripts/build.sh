@@ -50,6 +50,28 @@ export DTC_OVERLAY_VTS_EXT="$SOURCE_DIR/tools/mkdtimg/ufdt_verify_overlay_host"
   exit 1
 }
 
+# Validate the host-side DT overlay verifier before the kernel build. This
+# catches broken runtime dependencies (including truncated libc++ libraries)
+# at their source instead of allowing a later, misleading DTBO/Image failure.
+{
+  echo "helper=$DTC_OVERLAY_VTS_EXT"
+  file "$DTC_OVERLAY_VTS_EXT"
+  if file -b "$DTC_OVERLAY_VTS_EXT" | grep -q 'ELF'; then
+    ldd "$DTC_OVERLAY_VTS_EXT"
+  else
+    echo "Verifier is not an ELF executable; dynamic dependency check skipped."
+  fi
+} > "$ROOT/ufdt-host-deps.log" 2>&1 || {
+  cat "$ROOT/ufdt-host-deps.log" >&2
+  exit 1
+}
+
+if grep -Eqi 'not found|file too short|wrong ELF class|error while loading shared libraries' "$ROOT/ufdt-host-deps.log"; then
+  cat "$ROOT/ufdt-host-deps.log" >&2
+  echo "ERROR: DT overlay verifier has an invalid or unresolved host dependency." >&2
+  exit 1
+fi
+
 mkdir -p "$OUT_DIR"
 OUT_DIR="$(cd "$OUT_DIR" && pwd)"
 make -C "$SOURCE_DIR" O="$OUT_DIR" BSP_BUILD_DT_OVERLAY=y "$DEFCONFIG"
