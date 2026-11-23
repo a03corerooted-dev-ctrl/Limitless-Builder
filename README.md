@@ -29,10 +29,9 @@ No Actions variables are required for the default setup. For trusted mirrors, `L
 
 ```sh
 export LIMITLESS_SOURCE_REF=limitless/dev
-export LIMITLESS_GCC_DIR=/opt/toolchains/aarch64-linux-android-4.9
-export LIMITLESS_CLANG_DIR=/opt/toolchains/clang-r383902
-./scripts/build.sh
-./scripts/validate.sh
+bash ./scripts/setup.sh
+bash ./scripts/build.sh
+bash ./scripts/validate.sh
 ```
 
 Optional packaging overrides:
