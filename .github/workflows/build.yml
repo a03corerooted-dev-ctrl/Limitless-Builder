@@ -48,12 +48,12 @@ jobs:
 
       - name: Prepare toolchains
         env:
-          LIMITLESS_GCC_URL: ${{ vars.LIMITLESS_GCC_URL }}
-          LIMITLESS_CLANG_URL: ${{ vars.LIMITLESS_CLANG_URL }}
+          LIMITLESS_GCC_URL: ${{ vars.LIMITLESS_GCC_URL || 'https://github.com/SlimRoms/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9/archive/7280ce2399316a5dbd8872e0bfe69435d8719230.tar.gz' }}
+          LIMITLESS_CLANG_URL: ${{ vars.LIMITLESS_CLANG_URL || 'https://github.com/AOSP-10/prebuilts_clang_host_linux-x86_clang-r383902/archive/23ba73b5770985b6bf5f38efceba99019178025c.tar.gz' }}
           LIMITLESS_GCC_DIR: ${{ vars.LIMITLESS_GCC_DIR }}
           LIMITLESS_CLANG_DIR: ${{ vars.LIMITLESS_CLANG_DIR }}
         run: |
-          bash ./scripts/setup.sh
+          bash ./scripts/setup.sh 2>&1 | tee toolchain-setup.log
           echo "LIMITLESS_GCC_DIR=${LIMITLESS_GCC_DIR:-$PWD/.toolchains/gcc}" >> "$GITHUB_ENV"
           echo "LIMITLESS_CLANG_DIR=${LIMITLESS_CLANG_DIR:-$PWD/.toolchains/clang}" >> "$GITHUB_ENV"
 
