@@ -11,15 +11,24 @@ DEFAULT_CLANG_URL="https://github.com/AOSP-10/prebuilts_clang_host_linux-x86_cla
 download_toolchain() {
   local url="$1" dest="$2" label="$3"
   [[ -n "$url" ]] || {
-    echo "ERROR: configure $label archive URL or provide its directory." >&2
+    echo "ERROR: no download URL configured for $label." >&2
     return 1
   }
+
   mkdir -p "$dest"
   local archive
   archive="$(mktemp)"
-  curl --fail --location --retry 3 "$url" --output "$archive"
+  echo "Downloading pinned $label toolchain..."
+  curl --fail --location --retry 3 --retry-all-errors --connect-timeout 30 "$url" --output "$archive"
+
   tar -tzf "$archive" >/dev/null
-  tar -xzf "$archive" -C "$dest"
+  # GitHub source archives contain one wrapper directory. Strip it so the
+  # compiler retains its expected relative bin/lib/libexec layout.
+  if tar -tzf "$archive" | awk -F/ 'NR == 1 { root = $1 } $1 != root { bad = 1 } END { exit (NR == 0 || bad) }'; then
+    tar -xzf "$archive" --strip-components=1 -C "$dest"
+  else
+    tar -xzf "$archive" -C "$dest"
+  fi
   rm -f "$archive"
 }
 
@@ -70,9 +79,20 @@ normalize_toolchain_bin "$CLANG_DIR" clang "Clang r383902"
   exit 1
 }
 
+GCC_VERSION="$("$GCC_DIR/bin/aarch64-linux-android-gcc" -dumpversion)"
+[[ "$GCC_VERSION" == 4.9* ]] || {
+  echo "ERROR: expected AArch64 GCC 4.9, found '$GCC_VERSION'." >&2
+  exit 1
+}
+CLANG_VERSION="$("$CLANG_DIR/bin/clang" --version | head -n 1)"
+[[ "$CLANG_VERSION" == *"11.0.1"* ]] || {
+  echo "ERROR: expected Clang 11.0.1 / r383902, found '$CLANG_VERSION'." >&2
+  exit 1
+}
+
 {
   echo "gcc_source=SlimRoms/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9@7280ce2399316a5dbd8872e0bfe69435d8719230"
   echo "clang_source=AOSP-10/prebuilts_clang_host_linux-x86_clang-r383902@23ba73b5770985b6bf5f38efceba99019178025c"
-  "$GCC_DIR/bin/aarch64-linux-android-gcc" --version | head -n 1
-  "$CLANG_DIR/bin/clang" --version | head -n 1
+  echo "gcc_version=$GCC_VERSION"
+  echo "clang_version=$CLANG_VERSION"
 } | tee "$ROOT/toolchain-info.txt"
