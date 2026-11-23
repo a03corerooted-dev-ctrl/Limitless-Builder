@@ -5,11 +5,16 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "$ROOT/config/a03.env"
 
 SOURCE_DIR="${LIMITLESS_SOURCE_DIR:-$ROOT/source}"
+SOURCE_DIR="$(cd "$SOURCE_DIR" && pwd)"
 OUT_DIR="${OUT_DIR:-$ROOT/out}"
+mkdir -p "$OUT_DIR"
+OUT_DIR="$(cd "$OUT_DIR" && pwd)"
 KERNEL_IMAGE="$OUT_DIR/arch/arm64/boot/Image"
 STOCK_ARCHIVE="${LIMITLESS_STOCK_BOOT_ARCHIVE:-$SOURCE_DIR/Publish/a03-A035FXXS7CXF3.tar.xz}"
 MAGISKBOOT="${LIMITLESS_MAGISKBOOT:-$SOURCE_DIR/Publish/magiskboot}"
 STOCK_MEMBER="${LIMITLESS_STOCK_BOOT_MEMBER:-stock-boot.img}"
+[[ "$STOCK_ARCHIVE" = /* ]] || STOCK_ARCHIVE="$ROOT/$STOCK_ARCHIVE"
+[[ "$MAGISKBOOT" = /* ]] || MAGISKBOOT="$ROOT/$MAGISKBOOT"
 WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/limitless-boot.XXXXXX")"
 trap 'rm -rf "$WORK_DIR"' EXIT
 
