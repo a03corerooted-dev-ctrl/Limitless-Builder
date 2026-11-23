@@ -3,6 +3,8 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUT_DIR="${OUT_DIR:-$ROOT/out}"
+mkdir -p "$OUT_DIR"
+OUT_DIR="$(cd "$OUT_DIR" && pwd)"
 IMAGE="$OUT_DIR/arch/arm64/boot/Image"
 IMAGE_GZ_DTB="$OUT_DIR/arch/arm64/boot/Image.gz-dtb"
 BOOT_IMAGE="$OUT_DIR/boot.img"
