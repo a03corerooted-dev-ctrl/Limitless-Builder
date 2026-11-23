@@ -51,12 +51,12 @@ jobs:
           echo "LIMITLESS_GCC_DIR=${LIMITLESS_GCC_DIR:-$PWD/.toolchains/gcc}" >> "$GITHUB_ENV"
           echo "LIMITLESS_CLANG_DIR=${LIMITLESS_CLANG_DIR:-$PWD/.toolchains/clang}" >> "$GITHUB_ENV"
 
-      - name: Build kernel
+      - name: Build and package kernel
         env:
           LIMITLESS_SOURCE_REF: ${{ steps.source.outputs.ref }}
         run: ./scripts/build.sh 2>&1 | tee build.log
 
-      - name: Validate output
+      - name: Validate outputs
         run: ./scripts/validate.sh
 
       - name: Collect payload
@@ -64,8 +64,9 @@ jobs:
         run: |
           mkdir -p release
           cp "$(cat validated-image.txt)" release/
-          cp source-commit.txt release/
-          cp toolchain-info.txt build.log release/
+          cp "$(cat validated-boot-image.txt)" release/boot.img
+          cp source-commit.txt source-ref.txt toolchain-info.txt build.log release/
+          cp out/boot-packaging-info.txt release/
           printf 'Source ref: %s\nDefconfig: a03_cis_open_defconfig\nArchitecture: arm64\n' "${{ steps.source.outputs.ref }}" > release/BUILD-INFO.txt
           (cd release && sha256sum * > SHA256SUMS)
 
