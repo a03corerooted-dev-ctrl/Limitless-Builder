@@ -47,17 +47,17 @@ jobs:
           LIMITLESS_GCC_DIR: ${{ vars.LIMITLESS_GCC_DIR }}
           LIMITLESS_CLANG_DIR: ${{ vars.LIMITLESS_CLANG_DIR }}
         run: |
-          ./scripts/setup.sh
+          bash ./scripts/setup.sh
           echo "LIMITLESS_GCC_DIR=${LIMITLESS_GCC_DIR:-$PWD/.toolchains/gcc}" >> "$GITHUB_ENV"
           echo "LIMITLESS_CLANG_DIR=${LIMITLESS_CLANG_DIR:-$PWD/.toolchains/clang}" >> "$GITHUB_ENV"
 
       - name: Build and package kernel
         env:
           LIMITLESS_SOURCE_REF: ${{ steps.source.outputs.ref }}
-        run: ./scripts/build.sh 2>&1 | tee build.log
+        run: bash ./scripts/build.sh 2>&1 | tee build.log
 
       - name: Validate outputs
-        run: ./scripts/validate.sh
+        run: bash ./scripts/validate.sh
 
       - name: Collect payload
         shell: bash
