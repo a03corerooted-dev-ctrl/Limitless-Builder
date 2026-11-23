@@ -17,6 +17,7 @@ command -v nproc >/dev/null
 if [[ ! -d "$SOURCE_DIR/.git" ]]; then
   git clone --filter=blob:none "$SOURCE_REPOSITORY" "$SOURCE_DIR"
 fi
+SOURCE_DIR="$(cd "$SOURCE_DIR" && pwd)"
 
 git -C "$SOURCE_DIR" fetch --prune origin "$SOURCE_REF"
 git -C "$SOURCE_DIR" checkout --detach FETCH_HEAD
@@ -50,6 +51,7 @@ export DTC_OVERLAY_VTS_EXT="$SOURCE_DIR/tools/mkdtimg/ufdt_verify_overlay_host"
 }
 
 mkdir -p "$OUT_DIR"
+OUT_DIR="$(cd "$OUT_DIR" && pwd)"
 make -C "$SOURCE_DIR" O="$OUT_DIR" BSP_BUILD_DT_OVERLAY=y "$DEFCONFIG"
 make -C "$SOURCE_DIR" O="$OUT_DIR" -j"$(nproc)" \
   BSP_BUILD_DT_OVERLAY=y \
