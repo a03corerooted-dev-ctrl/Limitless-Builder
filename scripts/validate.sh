@@ -1,11 +1,20 @@
 #!/usr/bin/env bash
 set -euo pipefail
+
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUT_DIR="${OUT_DIR:-$ROOT/out}"
-IMAGE=""
-for f in "$OUT_DIR/arch/arm64/boot/Image.gz-dtb" "$OUT_DIR/arch/arm64/boot/Image.gz" "$OUT_DIR/arch/arm64/boot/Image"; do
-  if [[ -s "$f" ]]; then IMAGE="$f"; break; fi
-done
-[[ -n "$IMAGE" ]] || { echo "No non-empty ARM64 kernel image found." >&2; exit 1; }
-file "$IMAGE"
-printf '%s\n' "$IMAGE" > "$ROOT/validated-image.txt"
+IMAGE="$OUT_DIR/arch/arm64/boot/Image"
+IMAGE_GZ_DTB="$OUT_DIR/arch/arm64/boot/Image.gz-dtb"
+BOOT_IMAGE="$OUT_DIR/boot.img"
+
+[[ -s "$IMAGE" ]] || { echo "Missing non-empty ARM64 Image." >&2; exit 1; }
+[[ -s "$IMAGE_GZ_DTB" ]] || { echo "Missing non-empty Image.gz-dtb." >&2; exit 1; }
+[[ -s "$BOOT_IMAGE" ]] || { echo "Missing non-empty repacked boot.img." >&2; exit 1; }
+[[ -s "$OUT_DIR/boot-packaging-info.txt" ]] || {
+  echo "Missing boot packaging provenance/verification report." >&2
+  exit 1
+}
+
+file "$IMAGE" "$IMAGE_GZ_DTB" "$BOOT_IMAGE"
+printf '%s\n' "$IMAGE_GZ_DTB" > "$ROOT/validated-image.txt"
+printf '%s\n' "$BOOT_IMAGE" > "$ROOT/validated-boot-image.txt"
