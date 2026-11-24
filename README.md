@@ -7,15 +7,17 @@ Independent build and release pipeline for Limitless on Samsung Galaxy A03 (qogi
 - Kernel source: `a03corerooted-dev-ctrl/limitless_android_kernel_samsung_a03`.
 - Builder code is independent; it does not use or modify NonGKI_Kernel_Build-K419.
 - GitHub Releases and Actions are the build/publish interface.
-- The pipeline produces the raw ARM64 kernel image and a repacked `boot.img`.
-- The boot package currently uses `Publish/a03-A035FXXS7CXF3.tar.xz` from the kernel source and its bundled `magiskboot`. The archive supplies `stock-boot.img`; only the kernel payload is replaced, while the stock ramdisk and boot metadata are retained.
-- This stock boot image is explicitly identified as firmware reference A035FXXS7CXF3. The tester's A035FXXS9CYG1 device has not yet validated this image. Treat the first package as an engineering/test artifact, not a confirmed cross-binary-compatible release.
-- Do not use this A035F package for SM-A035M or SM-A035G without variant-specific boot assets and validation. DTBO packaging is not yet included.
+- The pipeline produces the raw ARM64 `Image`, a gzip-compressed `Image.gz`, the repacked `boot.img`, and diagnostic ABI/build files.
+- The BSP target is named `Image.gz-dtb`, but in this tree it builds a gzip-only kernel payload while compiling DTB/DTBO targets separately. The artifact is therefore published as `Image.gz`, not mislabeled as a kernel with an appended DTB.
+- The boot package uses `Publish/a03-A035FXXS7CXF3.tar.xz` and its bundled `magiskboot`. The repack replaces the kernel and verifies that the extracted kernel, ramdisk CPIO and embedded DTB are byte-identical to their stock extracted counterparts.
+- The source archive is S7CXF3; the tester device is S9CYG1. During the project audit, the decompressed ramdisk CPIO and embedded DTB were verified byte-identical between those two stock images. The boot header name and Android patch metadata differ (SRPUH31A007 / 2024-07 versus SRPUH31A009 / 2025-08). The output remains an engineering test artifact until a real device boot is confirmed.
+- The device's existing CYG1 DTBO partition is left unchanged for the first test. Do not use this A035F package for SM-A035M or SM-A035G without variant-specific assets and validation.
 
 ## Entry points
 
-- `workflow_dispatch`: manual build with a selected source ref.
-- `release: published`: build the matching source tag and attach outputs to that release. Create the same tag in the kernel source repository first; otherwise use `workflow_dispatch` with an existing source ref.
+- `push` to the builder's `limitless/dev` branch: automatically builds the latest `limitless/dev` kernel-source commit.
+- `workflow_dispatch`: manually builds the latest `limitless/dev` kernel-source commit. Older tags and arbitrary SHAs are intentionally not selectable for the baseline pipeline.
+- The exact kernel-source SHA is recorded. The build aborts if the source branch advances while compilation is running.
 
 ## Toolchains
 
@@ -40,6 +42,10 @@ Optional packaging overrides:
 - `LIMITLESS_STOCK_BOOT_MEMBER`: archive member name (defaults to `stock-boot.img`).
 - `LIMITLESS_MAGISKBOOT`: alternate host `magiskboot` binary.
 
-## Releases
+## Baseline gates
 
-Use tags such as `v0.1.0-alpha.1`, `v0.1.0-beta.1`, then `v1.0.0`. Each release includes the raw kernel image, repacked boot image, source commit, compiler version report, packaging provenance, build log and SHA-256 checksums. Never label an untested build stable.
+- The generated kernel release must equal `4.14.199-27193134-abA035FXXS9CYG1`, matching the stock vendor-module vermagic.
+- The stock defconfig baseline keeps `CONFIG_NET_ACT_BPF` and `CONFIG_BPF_STREAM_PARSER` disabled.
+- `Module.symvers` must retain the stock `module_layout` CRC. The complete vendor-module symbol comparison is a separate validation step.
+- The repacked boot must preserve the extracted stock ramdisk CPIO and embedded DTB byte-for-byte. AVB signature verification is not performed by this builder.
+- No build is a confirmed boot until it has been tested on the exact SM-A035F firmware and logs have been reviewed. Do not label an untested build stable.
