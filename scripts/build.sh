@@ -21,6 +21,10 @@ SOURCE_DIR="$(cd "$SOURCE_DIR" && pwd)"
 
 git -C "$SOURCE_DIR" fetch --prune origin "$SOURCE_REF"
 git -C "$SOURCE_DIR" checkout --detach FETCH_HEAD
+git -C "$SOURCE_DIR" rev-parse HEAD > "$ROOT/source-commit.txt"
+printf '%s\n' "$SOURCE_REF" > "$ROOT/source-ref.txt"
+echo "source_commit=$(cat "$ROOT/source-commit.txt")"
+echo "source_ref=$SOURCE_REF"
 
 [[ -x "$GCC_DIR/bin/aarch64-linux-android-gcc" ]] || {
   echo "AArch64 GCC 4.9 not found: $GCC_DIR" >&2
@@ -122,7 +126,7 @@ KERNEL_RELEASE="$(make -s -C "$SOURCE_DIR" O="$OUT_DIR" BSP_BUILD_DT_OVERLAY=y k
   echo "Kernel release mismatch: expected '$EXPECTED_KERNEL_RELEASE', got '$KERNEL_RELEASE'." >&2
   exit 1
 }
-printf '%s\\n' "$KERNEL_RELEASE" > "$ROOT/kernelrelease.txt"
+printf '%s\n' "$KERNEL_RELEASE" > "$ROOT/kernelrelease.txt"
 echo "kernel_release=$KERNEL_RELEASE"
 
 make -C "$SOURCE_DIR" O="$OUT_DIR" -j"$(nproc)" \
@@ -154,8 +158,5 @@ MODULE_LAYOUT_CRC="$(awk '$2 == "module_layout" { print $1; exit }' "$OUT_DIR/Mo
   exit 1
 }
 echo "module_layout_crc=$MODULE_LAYOUT_CRC"
-
-git -C "$SOURCE_DIR" rev-parse HEAD > "$ROOT/source-commit.txt"
-printf '%s\n' "$SOURCE_REF" > "$ROOT/source-ref.txt"
 
 bash "$ROOT/scripts/package-boot.sh"
