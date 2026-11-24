@@ -159,4 +159,17 @@ MODULE_LAYOUT_CRC="$(awk '$2 == "module_layout" { print $1; exit }' "$OUT_DIR/Mo
 }
 echo "module_layout_crc=$MODULE_LAYOUT_CRC"
 
+# A baseline build must never publish an artifact from a branch tip that became
+# stale while the compiler was running.
+if [[ "$SOURCE_REF" == "limitless/dev" ]]; then
+  LATEST_SOURCE_SHA="$(git ls-remote "$SOURCE_REPOSITORY" "refs/heads/limitless/dev" | awk 'NR == 1 { print $1 }')"
+  BUILT_SOURCE_SHA="$(git -C "$SOURCE_DIR" rev-parse HEAD)"
+  [[ -n "$LATEST_SOURCE_SHA" && "$BUILT_SOURCE_SHA" == "$LATEST_SOURCE_SHA" ]] || {
+    echo "Source branch advanced during build; refusing to package stale commit." >&2
+    echo "built=$BUILT_SOURCE_SHA latest=$LATEST_SOURCE_SHA" >&2
+    exit 1
+  }
+  echo "source_tip_verified=$LATEST_SOURCE_SHA"
+fi
+
 bash "$ROOT/scripts/package-boot.sh"
