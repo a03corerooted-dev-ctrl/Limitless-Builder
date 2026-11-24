@@ -1,20 +1,16 @@
 name: Limitless kernel build
 
 on:
+  push:
+    branches:
+      - limitless/dev
   workflow_dispatch:
-    inputs:
-      source_ref:
-        description: Kernel source branch, tag or commit
-        required: true
-        default: limitless/dev
-  release:
-    types: [published]
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: limitless-build-${{ github.event.release.tag_name || github.ref }}
+  group: limitless-build-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -36,16 +32,6 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y bc bison build-essential cpio curl device-tree-compiler file flex git libc++1-14 libelf-dev libncurses-dev libssl-dev lz4 make python-is-python3 python3 rsync xz-utils zlib1g-dev
 
-      - name: Resolve source ref
-        id: source
-        shell: bash
-        run: |
-          if [[ "${{ github.event_name }}" == "release" ]]; then
-            echo "ref=${{ github.event.release.tag_name }}" >> "$GITHUB_OUTPUT"
-          else
-            echo "ref=${{ inputs.source_ref }}" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Prepare toolchains
         env:
           LIMITLESS_GCC_URL: ${{ vars.LIMITLESS_GCC_URL || 'https://github.com/SlimRoms/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9/archive/7280ce2399316a5dbd8872e0bfe69435d8719230.tar.gz' }}
@@ -59,13 +45,26 @@ jobs:
           echo "LIMITLESS_GCC_DIR=${LIMITLESS_GCC_DIR:-$PWD/.toolchains/gcc}" >> "$GITHUB_ENV"
           echo "LIMITLESS_CLANG_DIR=${LIMITLESS_CLANG_DIR:-$PWD/.toolchains/clang}" >> "$GITHUB_ENV"
 
-      - name: Build and package kernel
+      - name: Build latest kernel source
         env:
-          LIMITLESS_SOURCE_REF: ${{ steps.source.outputs.ref }}
+          LIMITLESS_SOURCE_REF: limitless/dev
         shell: bash
         run: |
           set -euo pipefail
           bash ./scripts/build.sh 2>&1 | tee build.log
+
+      - name: Verify source branch is still at the built commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          source config/a03.env
+          BUILT_SHA="$(cat source-commit.txt)"
+          LATEST_SHA="$(git ls-remote "$SOURCE_REPOSITORY" "refs/heads/limitless/dev" | awk 'NR == 1 { print $1 }')"
+          [[ -n "$LATEST_SHA" && "$BUILT_SHA" == "$LATEST_SHA" ]] || {
+            echo "Refusing to publish a build that is no longer the latest source commit." >&2
+            echo "built=$BUILT_SHA latest=$LATEST_SHA" >&2
+            exit 1
+          }
 
       - name: Validate outputs
         run: bash ./scripts/validate.sh
@@ -73,15 +72,20 @@ jobs:
       - name: Collect payload
         shell: bash
         run: |
+          set -euo pipefail
           mkdir -p release
-          cp "$(cat validated-image.txt)" release/
+          cp "$(cat validated-image.txt)" release/Image
+          cp "$(cat validated-gzip-image.txt)" release/Image.gz
           cp "$(cat validated-boot-image.txt)" release/boot.img
-          cp source-commit.txt source-ref.txt toolchain-info.txt build.log release/
+          cp out/.config release/kernel.config
+          cp out/Module.symvers release/Module.symvers
+          cp out/System.map release/System.map
+          cp source-commit.txt source-ref.txt kernelrelease.txt toolchain-info.txt build.log release/
           cp out/boot-packaging-info.txt release/
-          printf 'Source ref: %s\nDefconfig: a03_cis_open_defconfig\nArchitecture: arm64\n' "${{ steps.source.outputs.ref }}" > release/BUILD-INFO.txt
+          printf 'Source ref: limitless/dev\nSource commit: %s\nKernel release: %s\nDefconfig: a03_cis_open_defconfig\nArchitecture: arm64\nTarget: SM-A035F / qogirl6 / UMS9230 4H10\n' "$(cat source-commit.txt)" "$(cat kernelrelease.txt)" > release/BUILD-INFO.txt
           (cd release && sha256sum * > SHA256SUMS)
 
-      - name: Upload diagnostic logs
+      - name: Upload diagnostic logs and ABI files
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -93,20 +97,21 @@ jobs:
             ufdt-host-deps.log
             source-commit.txt
             source-ref.txt
+            kernelrelease.txt
+            out/.config
+            out/Module.symvers
+            out/System.map
+            out/include/config/kernel.release
+            out/arch/arm64/boot/dts/sprd/ums9230.dtb
+            out/arch/arm64/boot/dts/sprd/ums9230-4h10-overlay.dtbo
+            out/boot-packaging-info.txt
           if-no-files-found: ignore
           retention-days: 7
 
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Limitless-${{ github.event.release.tag_name || github.run_number }}
+          name: Limitless-${{ github.run_number }}
           path: release/*
           if-no-files-found: error
           retention-days: 30
-
-      - name: Attach assets to GitHub Release
-        if: github.event_name == 'release'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.event.release.tag_name }}
-        run: gh release upload "$TAG" release/* --clobber
