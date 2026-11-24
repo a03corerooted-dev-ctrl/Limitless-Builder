@@ -41,6 +41,23 @@ export BSP_BUILD_ANDROID_OS=y
 export DTC_OVERLAY_TEST_EXT="$SOURCE_DIR/tools/mkdtimg/ufdt_apply_overlay"
 export DTC_OVERLAY_VTS_EXT="$SOURCE_DIR/tools/mkdtimg/ufdt_verify_overlay_host"
 
+# The checked-in Android host verifier has a legacy DT_NEEDED entry for
+# "libc++.so" (the development linker name), rather than the runtime SONAME
+# "libc++.so.1". Provide a private compatibility alias without modifying
+# system library paths or the tracked binary.
+LIBCXX_RUNTIME="$(ldconfig -p | awk '$1 == "libc++.so.1" && $2 ~ /x86-64/ {print $NF; exit}')"
+[[ -n "$LIBCXX_RUNTIME" && -s "$LIBCXX_RUNTIME" ]] || {
+  echo "ERROR: libc++.so.1 runtime library is missing; install libc++1-14." >&2
+  ldconfig -p | grep -F 'libc++.so' >&2 || true
+  exit 1
+}
+HOST_COMPAT_LIB_DIR="$ROOT/.host-libs"
+mkdir -p "$HOST_COMPAT_LIB_DIR"
+ln -sfn "$LIBCXX_RUNTIME" "$HOST_COMPAT_LIB_DIR/libc++.so"
+export LD_LIBRARY_PATH="$HOST_COMPAT_LIB_DIR${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+echo "libcxx_runtime=$LIBCXX_RUNTIME"
+echo "libcxx_compat_alias=$HOST_COMPAT_LIB_DIR/libc++.so"
+
 [[ -x "$DTC_OVERLAY_TEST_EXT" ]] || {
   echo "Missing executable DT overlay test helper: $DTC_OVERLAY_TEST_EXT" >&2
   exit 1
