@@ -39,6 +39,19 @@ export ARCH SUBARCH="$ARCH"
 export LOCALVERSION
 export CROSS_COMPILE="$GCC_DIR/bin/$CROSS_COMPILE"
 export PATH="$CLANG_DIR/bin:$GCC_DIR/bin:$PATH"
+
+# Experimental A03 linker test: use the matching AArch64 GNU Gold linker
+# shipped with the pinned GCC 4.9 toolchain. Do not silently fall back to LLD;
+# a missing Gold binary must be visible as a setup failure, not a false test.
+GOLD_LD="${CROSS_COMPILE}ld.gold"
+[[ -x "$GOLD_LD" ]] || {
+  echo "ERROR: AArch64 GNU Gold linker not found: $GOLD_LD" >&2
+  echo "Available cross-linkers:" >&2
+  find "$GCC_DIR/bin" -maxdepth 1 -type f -name "*ld*" -printf "%f\\n" | sort >&2 || true
+  exit 1
+}
+echo "gold_linker=$GOLD_LD"
+"$GOLD_LD" --version | head -n 1
 export KBUILD_BUILD_USER=Limitless
 export KBUILD_BUILD_HOST=limitless-builder
 export BSP_BUILD_FAMILY=qogirl6
@@ -132,7 +145,7 @@ echo "kernel_release=$KERNEL_RELEASE"
 make -C "$SOURCE_DIR" O="$OUT_DIR" -j"$(nproc)" \
   BSP_BUILD_DT_OVERLAY=y \
   CC="$CLANG_DIR/bin/clang" CROSS_COMPILE="$CROSS_COMPILE" \
-  CLANG_TRIPLE="$CLANG_TRIPLE" LD="$CLANG_DIR/bin/ld.lld" \
+  CLANG_TRIPLE="$CLANG_TRIPLE" LD="$GOLD_LD" \
   Image.gz-dtb
 
 [[ -s "$OUT_DIR/arch/arm64/boot/Image" ]] || {
