@@ -49,10 +49,20 @@ cp "$KERNEL_IMAGE" "$WORK_DIR/kernel"
 (
   cd "$WORK_DIR"
   ./magiskboot unpack stock-boot.img
+  [[ -s kernel ]] || {
+    echo "magiskboot did not extract the stock kernel; refusing to repack." >&2
+    exit 1
+  }
   [[ -s ramdisk.cpio ]] || {
     echo "magiskboot did not extract a ramdisk; refusing to repack." >&2
     exit 1
   }
+  [[ -s dtb ]] || {
+    echo "magiskboot did not extract the embedded DTB table; refusing to repack." >&2
+    exit 1
+  }
+  cp ramdisk.cpio "$WORK_DIR/stock-ramdisk.cpio"
+  cp dtb "$WORK_DIR/stock-dtb"
   cp "$KERNEL_IMAGE" kernel
   ./magiskboot repack stock-boot.img "$OUT_DIR/boot.img"
 )
@@ -74,6 +84,14 @@ chmod 0755 "$VERIFY_DIR/magiskboot"
     echo "Repacked boot kernel does not match the built Image." >&2
     exit 1
   }
+  cmp -s ramdisk.cpio "$WORK_DIR/stock-ramdisk.cpio" || {
+    echo "Repacked boot ramdisk CPIO differs from the stock ramdisk." >&2
+    exit 1
+  }
+  cmp -s dtb "$WORK_DIR/stock-dtb" || {
+    echo "Repacked boot embedded DTB differs from the stock DTB." >&2
+    exit 1
+  }
 )
 
 {
@@ -85,8 +103,14 @@ chmod 0755 "$VERIFY_DIR/magiskboot"
   sha256sum "$KERNEL_IMAGE" | awk '{print $1}'
   printf 'repacked_boot_sha256='
   sha256sum "$OUT_DIR/boot.img" | awk '{print $1}'
+  printf 'stock_ramdisk_cpio_sha256='
+  sha256sum "$WORK_DIR/stock-ramdisk.cpio" | awk '{print $1}'
+  printf 'stock_embedded_dtb_sha256='
+  sha256sum "$WORK_DIR/stock-dtb" | awk '{print $1}'
   printf 'stock_firmware_reference=A035FXXS7CXF3 (from source tree archive)\n'
-  printf 'verification=magiskboot unpack + extracted-kernel byte comparison passed\n'
+  printf 'CYG1_cross_check=ramdisk CPIO and embedded DTB were byte-identical to supplied A035FXXS9CYG1 image; boot name and OS patch metadata differ\n'
+  printf 'verification=kernel, ramdisk CPIO and embedded DTB byte comparisons passed\n'
+  printf 'avb_signature_verification=not_performed\n'
 } > "$OUT_DIR/boot-packaging-info.txt"
 
 echo "Boot image packaged and structurally verified: $OUT_DIR/boot.img"
